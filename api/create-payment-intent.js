@@ -8,28 +8,46 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
+  if (req.method !== "POST") {
+    console.warn("❌ Mauvaise méthode:", req.method);
+    return res.status(405).json({ error: "Méthode non autorisée" });
+  }
 
   try {
     const { cart, customer } = req.body;
 
+    // Debug des données reçues
+    console.log("📦 Cart reçu:", cart);
+    console.log("👤 Client reçu:", customer);
+
     // Calcul simple (20€ par article)
     const amount = cart.reduce((sum, item) => sum + item.qty * 2000, 0);
+    console.log("💶 Montant calculé:", amount);
 
+    // Création du PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: "eur",
       receipt_email: customer.email,
       metadata: {
         cart: JSON.stringify(cart),
-        name: customer.firstName + " " + customer.lastName,
+        name: `${customer.firstName} ${customer.lastName}`,
         email: customer.email
       },
     });
 
-    res.json({ clientSecret: paymentIntent.client_secret });
+    console.log("✅ PaymentIntent créé:", paymentIntent.id);
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      debug: {
+        receivedCart: cart,
+        receivedCustomer: customer,
+        calculatedAmount: amount
+      }
+    });
   } catch (err) {
-    console.error("Erreur Stripe:", err);
+    console.error("❌ Erreur Stripe:", err);
     res.status(500).json({ error: err.message });
   }
 }
