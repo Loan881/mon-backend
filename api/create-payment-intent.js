@@ -1,20 +1,20 @@
 import Stripe from "stripe";
 
-// Initialise Stripe avec ta clé secrète depuis les variables d'environnement Vercel
+// Vérifie si la clé est bien disponible
+console.log("Clé Stripe dispo ?", !!process.env.STRIPE_SECRET_KEY);
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export default async function handler(req, res) {
   // --- CORS ---
-  res.setHeader("Access-Control-Allow-Origin", "*"); // en dev tu peux mettre * pour tester
+  res.setHeader("Access-Control-Allow-Origin", "*"); // pour test, accepte tout
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Réponse aux requêtes preflight CORS
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  // Refuser toute méthode sauf POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
@@ -23,28 +23,32 @@ export default async function handler(req, res) {
     const { cart, customer } = req.body || {};
 
     if (!cart || !customer) {
-      return res.status(400).json({ error: "Requête invalide : cart ou customer manquant" });
+      console.log("Requête invalide:", req.body);
+      return res.status(400).json({ error: "Corps de requête manquant" });
     }
 
-    // Exemple simple : 20 € par article
+    // Exemple de calcul (20€ par article)
     const amount = cart.reduce((sum, item) => sum + item.qty * 2000, 0);
 
-    // Création d’un PaymentIntent
+    console.log("Création PaymentIntent avec montant:", amount);
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: "eur",
       receipt_email: customer.email,
       metadata: {
         cart: JSON.stringify(cart),
-        name: `${customer.firstName} ${customer.lastName}`,
+        name: customer.firstName + " " + customer.lastName,
         email: customer.email,
       },
     });
 
-    // Retourne le client_secret au frontend
-    return res.status(200).json({ clientSecret: paymentIntent.client_secret });
+    console.log("PaymentIntent créé:", paymentIntent.id);
+
+    res.json({ clientSecret: paymentIntent.client_secret });
   } catch (err) {
     console.error("Erreur Stripe:", err);
-    return res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 }
+
