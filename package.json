@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node api/create-payment-intent.js"
+    "dev": "vercel dev"
   },
   "dependencies": {
-    "stripe": "^12.0.0"
+    "stripe": "^12.0.0",
+    "micro": "^9.3.4"
   }
 }
